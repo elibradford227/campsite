@@ -32,12 +32,20 @@ app.UseHttpsRedirection();
 app.MapGet("/api/campsites", (CreekRiverDbContext db) => 
 {
     return db.Campsites
+    .Include(c => c.CampsiteType)
     .Select(c => new CampsiteDTO
     {
         Id = c.Id,
         Nickname = c.Nickname,
         ImageUrl = c.ImageUrl,
-        CampsiteTypeId = c.CampsiteTypeId
+        CampsiteTypeId = c.CampsiteTypeId,
+        CampsiteType = new CampsiteTypeDTO
+        {
+            Id = c.CampsiteType.Id,
+            CampsiteTypeName = c.CampsiteType.CampsiteTypeName,
+            FeePerNight = c.CampsiteType.FeePerNight,
+            MaxReservationDays = c.CampsiteType.MaxReservationDays
+        }
     }).ToList();
 });
 
@@ -66,6 +74,18 @@ app.MapPost("/api/campsites", (CreekRiverDbContext db, Campsite campsite) =>
     db.Campsites.Add(campsite);
     db.SaveChanges();
     return Results.Created($"/api/campsites/{campsite.Id}", campsite);
+});
+
+app.MapDelete("api/campsites/{id}", (CreekRiverDbContext db, int id) =>
+{
+    Campsite campsite = db.Campsites.SingleOrDefault(campsite => campsite.Id == id);
+    if (campsite == null)
+    {
+        return Results.NotFound();
+    }
+    db.Campsites.Remove(campsite);
+    db.SaveChanges();
+    return Results.NoContent();
 });
 
 app.Run();

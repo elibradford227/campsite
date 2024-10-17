@@ -29,28 +29,43 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-var summaries = new[]
+app.MapGet("/api/campsites", (CreekRiverDbContext db) => 
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+    return db.Campsites
+    .Select(c => new CampsiteDTO
+    {
+        Id = c.Id,
+        Nickname = c.Nickname,
+        ImageUrl = c.ImageUrl,
+        CampsiteTypeId = c.CampsiteTypeId
+    }).ToList();
+});
 
-app.MapGet("/weatherforecast", () =>
+app.MapGet("/api/campsites/{id}", (CreekRiverDbContext db, int id) =>
 {
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateTime.Now.AddDays(index),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+    return db.Campsites
+        .Include(c => c.CampsiteType)
+        .Select(c => new CampsiteDTO
+        {
+            Id = c.Id,
+            Nickname = c.Nickname,
+            CampsiteTypeId = c.CampsiteTypeId,
+            CampsiteType = new CampsiteTypeDTO
+            {
+                Id = c.CampsiteType.Id,
+                CampsiteTypeName = c.CampsiteType.CampsiteTypeName,
+                FeePerNight = c.CampsiteType.FeePerNight,
+                MaxReservationDays = c.CampsiteType.MaxReservationDays
+            }
+        })
+        .Single(c => c.Id == id);
+});
+
+app.MapPost("/api/campsites", (CreekRiverDbContext db, Campsite campsite) =>
+{
+    db.Campsites.Add(campsite);
+    db.SaveChanges();
+    return Results.Created($"/api/campsites/{campsite.Id}", campsite);
+});
 
 app.Run();
-
-record WeatherForecast(DateTime Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
